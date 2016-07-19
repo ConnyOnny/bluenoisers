@@ -39,6 +39,8 @@ struct BackgroundGrid2D {
     data: Vec<Option<usize>>, // stores indices
     cells_x: usize, // for linearization of the 2D array
     cells_y: usize,
+    width: usize,
+    height: usize,
     min_distance_sqr: usize,
     cell_size: usize,
 }
@@ -46,24 +48,28 @@ struct BackgroundGrid2D {
 impl BackgroundGrid2D {
     pub fn new(width: usize, height: usize, min_distance: f64) -> BackgroundGrid2D {
         assert!(min_distance > 0.0_f64);
-        let max_cell_size = min_distance / 2.0_f64.sqrt();
+        let max_cell_size = (min_distance / 2.0_f64.sqrt()).floor();
         let cells_x : usize = (width as f64 / max_cell_size).ceil() as usize;
         let cells_y : usize = (height as f64 / max_cell_size).ceil() as usize;
         BackgroundGrid2D {
             data: vec![None; cells_x*cells_y],
             cells_x: cells_x,
             cells_y: cells_y,
+            width: width,
+            height: height,
             min_distance_sqr: (min_distance * min_distance).ceil() as usize,
             cell_size: max_cell_size as usize,
         }
     }
     pub fn insert(&mut self, sample_x: usize, sample_y: usize, samples: &mut Vec<Sample2D>) -> Result<usize,()> {
         let new_sample = Sample2D { x: sample_x, y: sample_y };
-        let cell_id_x = sample_x / self.cell_size;
-        let cell_id_y = sample_y / self.cell_size;
-        if cell_id_x >= self.cells_x || cell_id_y >= self.cells_y {
+        if sample_x >= self.width || sample_y >= self.height {
             return Err(());
         }
+        let cell_id_x = sample_x / self.cell_size;
+        let cell_id_y = sample_y / self.cell_size;
+        assert!(cell_id_x < self.cells_x);
+        assert!(cell_id_y < self.cells_y);
         let min_cell_id_x = cell_id_x.saturating_sub(2);
         let max_cell_id_x = min((cell_id_x + 2),self.cells_x-1);
         let min_cell_id_y = cell_id_y.saturating_sub(2);
@@ -140,6 +146,19 @@ pub fn blue_noise (image: &mut NoiseContainer2D, min_distance: f64, k_abort: usi
     for samp in samples {
         image.put_sample(samp.x, samp.y);
     }
+}
+
+#[test]
+fn grid_corners() {
+    let mut grid = BackgroundGrid2D::new(35,9,4.0);
+    let mut samples = Vec::new();
+    println!("cell size: {}", grid.cell_size);
+    println!("grid dimensions: {} x {}", grid.cells_x, grid.cells_y);
+    assert_eq!(grid.insert(0,9,&mut samples), Err(()));
+    assert_eq!(grid.insert(0,0,&mut samples), Ok(0));
+    assert_eq!(grid.insert(34,0,&mut samples), Ok(1));
+    assert_eq!(grid.insert(0,8,&mut samples), Ok(2));
+    assert_eq!(grid.insert(34,8,&mut samples), Ok(3));
 }
 
 #[cfg(test)]
