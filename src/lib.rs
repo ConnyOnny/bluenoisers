@@ -21,7 +21,7 @@ impl NoiseContainer2D for Vec<Vec<bool>> {
     }
 }
 
-#[derive(Clone,Copy,PartialEq,Eq)]
+#[derive(Clone,Copy,PartialEq,Eq,Debug)]
 struct Sample2D {
     x: usize,
     y: usize,
@@ -90,6 +90,7 @@ impl BackgroundGrid2D {
         samples.push(new_sample);
         debug_assert_eq!(self.data[cell_id_y*self.cells_x+cell_id_x], None);
         self.data[cell_id_y*self.cells_x+cell_id_x] = Some(samples.len()-1);
+        debug_assert_eq!(samples[samples.len()-1], new_sample);
         Ok(samples.len()-1)
     }
 }
@@ -139,31 +140,45 @@ pub fn blue_noise (image: &mut NoiseContainer2D, min_distance: f64, k_abort: usi
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn get_image(radius: i32, size: usize) -> Vec<Vec<bool>> {
+        let mut image = vec![vec![false; size]; size];
+        blue_noise(&mut image, radius as f64, 30);
+        image
+    }
+    fn output_ppm(image: &Vec<Vec<bool>>) {
+        let size = image.len();
+        assert_eq!(image[0].len(),size);
+        println!("P1");
+        println!("{} {}", size, size);
+        for y in 0..size {
+            for x in 0..size {
+                print!("{} ", if image[y][x] { "1" } else { "0" });
+            }
+            println!("");
+        }
+    }
     #[test]
     fn output_sanity() {
         let size : usize = 128;
         let radius : i32 = 8;
-        let mut image = vec![vec![false; size]; size];
-        blue_noise(&mut image, radius as f64, 30);
+        let image = get_image(radius, size);
         for y in 0..size {
             for x in 0..size {
-                if image[x][y] {
+                if image[y][x] {
                     for dy in -radius..radius {
                         for dx in -radius..radius {
                             if dx == 0 && dy == 0 {
                                 continue;
                             }
-                            match image.get(y) {
-                                Some(line) => {
-                                    match line.get(x) {
+                            image.get(y).map(|line| match line.get(x) {
                                         Some(&true) => {
-                                            assert!(dx*dx+dy*dy <= radius*radius);
+                                            if !(dx*dx+dy*dy >= radius*radius) {
+                                                println!("dx: {}\ndy: {}",dx,dy);
+                                            }
+                                            assert!(dx*dx+dy*dy >= radius*radius);
                                         },
                                         _ => {}
-                                    }
-                                },
-                                _ => {}
-                            }
+                            });
                         }
                     }
                 }
@@ -175,15 +190,7 @@ mod tests {
     fn ppm() {
         let size : usize = 128;
         let radius : i32 = 8;
-        let mut image = vec![vec![false; size]; size];
-        blue_noise(&mut image, radius as f64, 30);
-        println!("P1");
-        println!("{} {}", size, size);
-        for y in 0..size {
-            for x in 0..size {
-                print!("{} ", if image[y][x] { "1" } else { "0" });
-            }
-            println!("");
-        }
+        let image = get_image(radius, size);
+        output_ppm(&image);
     }
 }
