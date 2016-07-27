@@ -3,26 +3,8 @@ use rand::Rng;
 
 use std::cmp::min;
 
-pub trait NoiseContainer2D {
-    fn width(&self) -> usize;
-    fn height(&self) -> usize;
-    fn put_sample(&mut self, x: usize, y: usize);
-}
-
-impl NoiseContainer2D for Vec<Vec<bool>> {
-    fn width(&self) -> usize {
-        self[0].len()
-    }
-    fn height(&self) -> usize {
-        self.len()
-    }
-    fn put_sample(&mut self, x: usize, y: usize) {
-        self[y][x] = true;
-    }
-}
-
 #[derive(Clone,Copy,PartialEq,Eq,Debug)]
-struct Sample2D {
+pub struct Sample2D {
     x: usize,
     y: usize,
 }
@@ -101,14 +83,14 @@ impl BackgroundGrid2D {
     }
 }
 
-pub fn blue_noise (image: &mut NoiseContainer2D, min_distance: f64, k_abort: usize) {
+pub fn blue_noise (dimensions: [usize; 2], min_distance: f64, k_abort: usize) -> Vec<Sample2D> {
     let mut rng = rand::thread_rng();
     let initial_sample = Sample2D {
-        x: rng.gen::<usize>() % image.width(),
-        y: rng.gen::<usize>() % image.height(),
+        x: rng.gen::<usize>() % dimensions[0],
+        y: rng.gen::<usize>() % dimensions[1],
     };
     let mut samples : Vec<Sample2D> = Vec::new();
-    let mut bggrid = BackgroundGrid2D::new(image.width(), image.height(), min_distance);
+    let mut bggrid = BackgroundGrid2D::new(dimensions[0], dimensions[1], min_distance);
     let initial_sample_id = bggrid.insert(initial_sample.x, initial_sample.y, &mut samples).unwrap();
     debug_assert_eq!(initial_sample_id, 0);
     let mut active : Vec<usize> = vec![initial_sample_id];
@@ -143,9 +125,7 @@ pub fn blue_noise (image: &mut NoiseContainer2D, min_distance: f64, k_abort: usi
         }
         active = next_active;
     }
-    for samp in samples {
-        image.put_sample(samp.x, samp.y);
-    }
+    samples
 }
 
 #[test]
@@ -165,8 +145,11 @@ fn grid_corners() {
 mod tests {
     use super::*;
     fn get_image(radius: f64, size: usize) -> Vec<Vec<bool>> {
+        let samples = blue_noise([size,size], radius, 30);
         let mut image = vec![vec![false; size]; size];
-        blue_noise(&mut image, radius, 30);
+        for s in samples {
+        	image[s.y][s.x] = true;
+        }
         image
     }
     fn output_ppm(image: &Vec<Vec<bool>>) {
