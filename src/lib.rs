@@ -271,23 +271,6 @@ mod tests {
         }
         image
     }
-    fn output_ppm(image: &Vec<Vec<bool>>) {
-        let size = image.len();
-        assert_eq!(image[0].len(), size);
-        println!("P1");
-        println!("{} {}", size, size);
-        for y in 0..size {
-            for x in 0..size {
-                print!("{} ",
-                       if image[y][x] {
-                           "1"
-                       } else {
-                           "0"
-                       });
-            }
-            println!("");
-        }
-    }
     #[test]
     fn sanity_2d() {
         let size: isize = 128;
@@ -315,11 +298,5 @@ mod tests {
                 }
             }
         }
-    }
-    #[test]
-    #[ignore]
-    fn ppm() {
-        let image = get_image(8.0, 128);
-        output_ppm(&image);
     }
 }
