@@ -53,14 +53,15 @@ impl BackgroundGrid {
         debug_assert_eq!(sample_position.len(), dimension);
         let cell_id : Vec<usize> = sample_position.iter().map(|x| (*x / self.cell_size) as usize).collect();
         let samp_idx = self.calc_idx(&cell_id);
-        // TODO debug assert cell_id in range
+        debug_assert!(cell_id.iter().zip(self.cell_count.iter()).all(|(cid,cc)| cid < cc));
         let cell_offs = (self.min_dst_sqr / (self.cell_size as f64)).ceil() as usize;
         let min_cell : Vec<usize> = cell_id.iter().map(|x| x.saturating_sub(cell_offs)).collect();
         let max_cell : Vec<usize> = cell_id.iter().zip(self.cell_count.iter()).map(|(x,size_x)| min(x + cell_offs, size_x-1)).collect();
-        // TODO debug assert min_cell <= cell <= max_cell
+        debug_assert!(min_cell.iter().zip(max_cell.iter()).zip(cell_id.iter()).all(|((cmin,cmax),c)| cmin <= c && c <= cmax));
         let mut indices = min_cell.clone();
         let mut checked_own_idx = false;
         loop {
+            debug_assert!(min_cell.iter().zip(max_cell.iter()).zip(indices.iter()).all(|((cmin,cmax),c)| cmin <= c && c <= cmax));
             let idx = self.calc_idx(&indices);
             if idx == samp_idx {
                 checked_own_idx = true;
