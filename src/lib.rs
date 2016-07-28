@@ -1,3 +1,12 @@
+//! # bluenoisers
+//!
+//! Implementation of blue noise in Rust using Fast Poisson Disk Sampling.
+//! This implementation can be used for images (2-dimensional), for volumes (3-dimensional) and in higher dimensions.
+//!
+//! For background information see here: https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf
+//!
+//! Documentation is here: https://connyonny.github.io/bluenoisers/bluenoisers
+
 extern crate rand;
 use rand::Rng;
 
@@ -140,6 +149,16 @@ fn polar_to_cartesian(radius: f64, angles: Vec<f64>) -> Vec<f64> {
     cart
 }
 
+/// Generates blue noise samples
+///
+/// # Arguments
+///
+/// * `dimensions` - How broad in each dimension the space to be filled is. Its length determines the dimensionality, i.e. length `n` generates an `n`-dimensional problem space.
+/// * `min_distance` - How far away from each other should samples at least be, euclidean distance
+/// * `k_abort` - How often should the generator try to generate a valid new neighbor of an existing point before giving that existing point up as starting point. A value of 30 is recommended.
+///
+/// The samples returned are in order of generation.
+/// Each sample is at most `2 * min_distance` away from a previous sample (except the first sample, of course).
 pub fn blue_noise(dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> Vec<Vec<f64>> {
     let dimension = dimensions.len();
     let mut rng = rand::thread_rng();
