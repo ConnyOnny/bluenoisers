@@ -64,8 +64,12 @@ impl BackgroundGrid {
         let max_cell : Vec<usize> = cell_id.iter().zip(self.cell_count.iter()).map(|(x,size_x)| min(x + cell_offs, size_x-1)).collect();
         // TODO debug assert min_cell <= cell <= max_cell
         let mut indices = min_cell.clone();
+        let mut checked_own_idx = false;
         loop {
             let idx = self.calc_idx(&indices);
+            if idx == samp_idx {
+                checked_own_idx = true;
+            }
             match self.data[idx] {
                 0 => (),
                 other_id => {
@@ -74,6 +78,10 @@ impl BackgroundGrid {
                         return Err(());
                     }
                 }
+            }
+            // loop exit check
+            if indices == max_cell {
+                break;
             }
             // iterate indices
             for i in 0..dimension {
@@ -84,14 +92,11 @@ impl BackgroundGrid {
                     break;
                 }
             }
-            // loop exit check
-            if indices == max_cell {
-                break;
-            }
         }
         // no collission found
+        debug_assert!(checked_own_idx, format!("Didn't check own idx.\n\tMin cells: {:?}\n\tMax cells: {:?}\n\tself cells: {:?}", min_cell, max_cell, cell_id));
         samples.push(sample_position);
-        assert_eq!(self.data[samp_idx], 0);
+        debug_assert_eq!(self.data[samp_idx], 0);
         self.data[samp_idx] = samples.len();
         Ok(samples.len())
     }
@@ -176,7 +181,7 @@ mod tests {
     }
     #[test]
     fn sanity_6d() {
-        sanity_nd(6, 5., 6.);
+        sanity_nd(6, 6., 6.5);
     }
     fn sanity_nd(dimension: usize, minr: f64, maxr: f64) {
         let mut rng = rand::thread_rng();
