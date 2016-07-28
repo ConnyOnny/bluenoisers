@@ -43,12 +43,7 @@ impl BackgroundGrid {
         })
     }
     fn calc_idx(&self, cell_id: &Vec<usize>) -> usize {
-        let mut idx=0;
-        // TODO use multiplicators[0]=1 to optimize
-        for i in 0..self.cell_multiplicators.len() {
-            idx += cell_id[i] * self.cell_multiplicators[i];
-        }
-        idx
+        self.cell_multiplicators.iter().zip(cell_id.iter()).skip(1).fold(cell_id[0], |accu, (multi,cell)| accu + multi*cell)
     }
     pub fn insert(&mut self, sample_position: Vec<f64>, samples: &mut Vec<Vec<f64>>) -> Result<usize,()> {
         if sample_position.iter().zip(self.dimensions.iter()).any(|(samp_x,dim_x)| *samp_x < 0_f64 || samp_x >= dim_x) {
