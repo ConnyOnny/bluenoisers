@@ -173,6 +173,26 @@ impl BackgroundGrid2D {
     }
 }
 
+pub fn blue_noise (dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> Vec<Vec<f64>> {
+    let mut rng = rand::thread_rng();
+    let initial_sample = dimensions.iter().map(|x| rng.gen_range::<f64>(0_f64,*x)).collect();
+    let mut samples : Vec<Vec<f64>> = Vec::new();
+    let mut bggrid = BackgroundGrid::new(dimensions, min_distance);
+    let initial_sample_id = bggrid.insert(initial_sample, &mut samples).unwrap();
+    debug_assert_eq!(initial_sample_id, 1);
+    let mut active : Vec<usize> = vec![initial_sample_id];
+    while !active.is_empty() {
+        let mut next_active : Vec<usize> = Vec::new();
+        for current_id in active.iter() {
+            let mut found_something = false;
+            for _ in 0..k_abort {
+                
+            }
+        }
+    }
+    samples
+}
+
 pub fn blue_noise2D (dimensions: [usize; 2], min_distance: f64, k_abort: usize) -> Vec<Sample2D> {
     let mut rng = rand::thread_rng();
     let initial_sample = Sample2D {
