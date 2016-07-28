@@ -17,6 +17,96 @@ impl Sample2D {
     }
 }
 
+struct BackgroundGrid {
+    data: Vec<usize>,
+    dimensions: Vec<f64>,
+    min_dst_sqr: f64,
+    cell_size: usize,
+    cell_count: Vec<usize>,
+    cell_multiplicators: Vec<usize>,
+}
+
+impl BackgroundGrid {
+    pub fn new(dimensions: Vec<f64>, min_distance: f64) -> BackgroundGrid {
+        assert!(min_distance > 0.0);
+        let dimension = dimensions.len();
+        let cell_size = (min_distance / (dimension as f64).sqrt()).floor() as usize;
+        let cell_count : Vec<usize> = dimensions.iter().map(|x| (x / (cell_size as f64)).ceil() as usize).collect();
+        let data_size = cell_count.iter().fold(1_usize, |accu, x| accu * x);
+        let mut cell_multiplicators = Vec::new();
+        let mut multi_accu = 1_usize;
+        for i in 0..dimension {
+            cell_multiplicators.push(multi_accu);
+            multi_accu *= cell_count[i];
+        }
+        BackgroundGrid {
+            data: vec![0; data_size],
+            dimensions: dimensions,
+            min_dst_sqr: min_distance*min_distance,
+            cell_size: cell_size,
+            cell_count: cell_count,
+            cell_multiplicators: cell_multiplicators,
+        }
+    }
+    fn dst_sqr(x: &Vec<f64>, y: &Vec<f64>) -> f64 {
+        debug_assert_eq!(x.len(), y.len());
+        x.iter().zip(y.iter()).fold(1_f64, |accu, (xx, yx)| accu + xx*yx)
+    }
+    fn calc_idx(&self, cell_id: &Vec<usize>) -> usize {
+        let mut idx=0;
+        // TODO use multiplicators[0]=1 to optimize
+        for i in 0..self.cell_multiplicators.len() {
+            idx += cell_id[i] * self.cell_multiplicators[i];
+        }
+        idx
+    }
+    pub fn insert(&mut self, sample_position: Vec<f64>, samples: &mut Vec<Vec<f64>>) -> Result<usize,()> {
+        if sample_position.iter().zip(self.dimensions.iter()).any(|(samp_x,dim_x)| samp_x >= dim_x) {
+            return Err(());
+        }
+        let dimension = self.dimensions.len();
+        assert_eq!(sample_position.len(), dimension);
+        let cell_id : Vec<usize> = sample_position.iter().map(|x| *x as usize / self.cell_size).collect();
+        let samp_idx = self.calc_idx(&cell_id);
+        // TODO debug assert cell_id in range
+        let cell_offs = (self.min_dst_sqr / (self.cell_size as f64)).ceil() as usize;
+        let min_cell : Vec<usize> = cell_id.iter().map(|x| x.saturating_sub(cell_offs)).collect();
+        let max_cell : Vec<usize> = cell_id.iter().zip(self.cell_count.iter()).map(|(x,size_x)| min(x + cell_offs, size_x-1)).collect();
+        // TODO debug assert min_cell <= cell <= max_cell
+        let mut indices = min_cell.clone();
+        loop {
+            let idx = self.calc_idx(&indices);
+            match self.data[idx] {
+                0 => (),
+                other_id => {
+                    let other_sample = &samples[other_id-1];
+                    if BackgroundGrid::dst_sqr(&sample_position, other_sample) < self.min_dst_sqr {
+                        return Err(());
+                    }
+                }
+            }
+            // iterate indices
+            for i in 0..dimension {
+                if indices[i] == max_cell[i] {
+                    indices[i] = min_cell[i];
+                } else {
+                    indices[i]+=1;
+                    break;
+                }
+            }
+            // loop exit check
+            if indices == max_cell {
+                break;
+            }
+        }
+        // no collission found
+        samples.push(sample_position);
+        assert_eq!(self.data[samp_idx], 0);
+        self.data[samp_idx] = samples.len();
+        Ok(samples.len())
+    }
+}
+
 struct BackgroundGrid2D {
     data: Vec<Option<usize>>, // stores indices
     cells_x: usize, // for linearization of the 2D array
@@ -83,7 +173,7 @@ impl BackgroundGrid2D {
     }
 }
 
-pub fn blue_noise (dimensions: [usize; 2], min_distance: f64, k_abort: usize) -> Vec<Sample2D> {
+pub fn blue_noise2D (dimensions: [usize; 2], min_distance: f64, k_abort: usize) -> Vec<Sample2D> {
     let mut rng = rand::thread_rng();
     let initial_sample = Sample2D {
         x: rng.gen::<usize>() % dimensions[0],
@@ -145,10 +235,10 @@ fn grid_corners() {
 mod tests {
     use super::*;
     fn get_image(radius: f64, size: usize) -> Vec<Vec<bool>> {
-        let samples = blue_noise([size,size], radius, 30);
+        let samples = blue_noise2D([size,size], radius, 30);
         let mut image = vec![vec![false; size]; size];
         for s in samples {
-        	image[s.y][s.x] = true;
+            image[s.y][s.x] = true;
         }
         image
     }
