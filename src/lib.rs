@@ -195,17 +195,15 @@ mod tests {
         for y in 0..size {
             for x in 0..size {
                 if image[y as usize][x as usize] {
-                    for dy in -radius..radius {
-                        for dx in -radius..radius {
+                    for dy in 0..radius {
+                        for dx in 0..radius {
                             if dx == 0 && dy == 0 {
-                                continue;
-                            }
-                            if -dy > y as isize || -dx > x as isize {
                                 continue;
                             }
                             image.get((y+dy) as usize).map(|line| match line.get((x+dx) as usize) {
                                         Some(&true) => {
-                                            assert!(dx*dx+dy*dy >= radius*radius);
+                                            // the -1 is to accomodate for rounding errors
+                                            assert!(dx*dx+dy*dy >= (radius-1)*(radius-1));
                                         },
                                         _ => {}
                             });
