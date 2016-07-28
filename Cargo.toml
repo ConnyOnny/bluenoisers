@@ -7,7 +7,7 @@ documentation = "https://connyonny.github.io/bluenoisers/bluenoisers"
 repository = "https://github.com/ConnyOnny/bluenoisers"
 homepage = "https://github.com/ConnyOnny/bluenoisers"
 readme = "README.md"
-keywords = ["blue noise", "noise", "poisson", "sampling"]
+keywords = ["blue", "noise", "poisson", "sampling"]
 license = "Apache-2.0"
 
 [dependencies]
