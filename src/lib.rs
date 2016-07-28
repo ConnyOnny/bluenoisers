@@ -55,7 +55,7 @@ impl BackgroundGrid {
             return Err(());
         }
         let dimension = self.dimensions.len();
-        assert_eq!(sample_position.len(), dimension);
+        debug_assert_eq!(sample_position.len(), dimension);
         let cell_id : Vec<usize> = sample_position.iter().map(|x| (*x / self.cell_size) as usize).collect();
         let samp_idx = self.calc_idx(&cell_id);
         // TODO debug assert cell_id in range
