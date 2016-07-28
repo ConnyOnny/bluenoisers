@@ -2,6 +2,14 @@
 name = "bluenoisers"
 version = "1.0.0"
 authors = ["Constantin Berhard <git.mail.enormator@xoxy.net>"]
+description = "Implementation of blue noise in Rust using Fast Poisson Disk Sampling."
+documentation = "https://connyonny.github.io/bluenoisers/bluenoisers"
+repository = "https://github.com/ConnyOnny/bluenoisers"
+homepage = "https://github.com/ConnyOnny/bluenoisers"
+readme = "README.md"
+keywords = ["blue noise", "noise", "poisson", "sampling"]
+license = "Apache-2.0"
 
 [dependencies]
 rand = "0.3"
+
