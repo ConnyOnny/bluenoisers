@@ -8,7 +8,7 @@ struct BackgroundGrid {
     data: Vec<usize>,
     dimensions: Vec<f64>,
     min_dst_sqr: f64,
-    cell_size: usize,
+    cell_size: f64,
     cell_count: Vec<usize>,
     cell_multiplicators: Vec<usize>,
 }
@@ -17,7 +17,7 @@ impl BackgroundGrid {
     pub fn new(dimensions: Vec<f64>, min_distance: f64) -> BackgroundGrid {
         assert!(min_distance > 0.0);
         let dimension = dimensions.len();
-        let cell_size = (min_distance / (dimension as f64).sqrt()).floor() as usize;
+        let cell_size = min_distance / (dimension as f64).sqrt();
         let cell_count : Vec<usize> = dimensions.iter().map(|x| (x / (cell_size as f64)).ceil() as usize).collect();
         let data_size = cell_count.iter().fold(1_usize, |accu, x| accu * x);
         let mut cell_multiplicators = Vec::new();
@@ -35,7 +35,7 @@ impl BackgroundGrid {
             cell_multiplicators: cell_multiplicators,
         }
     }
-    fn dst_sqr(x: &Vec<f64>, y: &Vec<f64>) -> f64 {
+    pub fn dst_sqr(x: &Vec<f64>, y: &Vec<f64>) -> f64 {
         debug_assert_eq!(x.len(), y.len());
         x.iter().zip(y.iter()).fold(0_f64, |accu, (xx, yx)| {
             let diff = xx-yx;
@@ -56,7 +56,7 @@ impl BackgroundGrid {
         }
         let dimension = self.dimensions.len();
         assert_eq!(sample_position.len(), dimension);
-        let cell_id : Vec<usize> = sample_position.iter().map(|x| *x as usize / self.cell_size).collect();
+        let cell_id : Vec<usize> = sample_position.iter().map(|x| (*x / self.cell_size) as usize).collect();
         let samp_idx = self.calc_idx(&cell_id);
         // TODO debug assert cell_id in range
         let cell_offs = (self.min_dst_sqr / (self.cell_size as f64)).ceil() as usize;
@@ -167,6 +167,40 @@ fn grid_corners() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    extern crate rand;
+    use rand::Rng;
+    use std::f64;
+    #[test]
+    fn sanity_3d() {
+        sanity_nd(3, 15., 25.);
+    }
+    #[test]
+    fn sanity_6d() {
+        sanity_nd(6, 5., 6.);
+    }
+    fn sanity_nd(dimension: usize, minr: f64, maxr: f64) {
+        let mut rng = rand::thread_rng();
+        let radius = 3.;
+        let mut dimensions : Vec<f64> = Vec::new();
+        for _ in 0..dimension {
+            dimensions.push(rng.gen_range::<f64>(minr,maxr));
+        }
+        assert_eq!(dimensions.len(), dimension);
+        let samples = blue_noise(dimensions, radius, 30);
+        println!("there are {} samples.", samples.len());
+        for s1 in samples.iter() {
+            let mut mindst = f64::INFINITY;
+            for s2 in samples.iter() {
+                if s1 == s2 {
+                    continue;
+                }
+                let dst = super::BackgroundGrid::dst_sqr(s1,s2).sqrt();
+                if dst < mindst { mindst = dst; }
+            }
+            assert!(mindst >= radius); // distance constraint violated
+            assert!(mindst < 2_f64 * radius); // not nicely spread in the room
+        }
+    }
     fn get_image(radius: f64, size: usize) -> Vec<Vec<bool>> {
         let samples = blue_noise(vec![size as f64,size as f64], radius, 30);
         let mut image = vec![vec![false; size]; size];
@@ -188,7 +222,7 @@ mod tests {
         }
     }
     #[test]
-    fn output_sanity() {
+    fn sanity_2d() {
         let size : isize = 128;
         let radius : isize = 8;
         let image = get_image(radius as f64, size as usize);
