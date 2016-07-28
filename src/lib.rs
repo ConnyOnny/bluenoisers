@@ -176,6 +176,7 @@ mod tests {
         sanity_nd(3, 15., 25.);
     }
     #[test]
+    #[ignore]
     fn sanity_6d() {
         sanity_nd(6, 6., 6.5);
     }
