@@ -135,18 +135,102 @@ impl BackgroundGrid {
 }
 
 fn polar_to_cartesian(radius: f64, angles: Vec<f64>) -> Vec<f64> {
-    let mut cart = vec![0_f64; angles.len()+1];
     let sines: Vec<f64> = angles.iter().map(|x| x.sin()).collect();
-    for (i, xi) in cart.iter_mut().enumerate() {
-        // formula from https://en.wikipedia.org/wiki/N-sphere#Spherical_coordinates
-        *xi = sines.iter().take(i).fold(radius, |accu, sine| accu * sine) *
-              if let Some(ang) = angles.get(i) {
-            ang.cos()
-        } else {
-            1_f64
-        };
+    (0..angles.len() + 1)
+        .map(|i| {
+            sines.iter().take(i).fold(radius, |accu, sine| accu * sine) *
+            match angles.get(i) {
+                Some(ang) => ang.cos(),
+                None => 1_f64,
+            }
+        })
+        .collect()
+}
+
+pub struct BlueNoiseIterator {
+    dimensions: Vec<f64>,
+    min_distance: f64,
+    k_abort: usize,
+    samples: Vec<Vec<f64>>,
+    bggrid: BackgroundGrid,
+    active: Vec<usize>,
+    active_idx: usize,
+    next_active: Vec<usize>,
+}
+
+impl BlueNoiseIterator {
+    pub fn new(dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> BlueNoiseIterator {
+        BlueNoiseIterator {
+            dimensions: dimensions.clone(),
+            min_distance: min_distance,
+            k_abort: k_abort,
+            samples: Vec::new(),
+            bggrid: BackgroundGrid::new(dimensions, min_distance),
+            active: Vec::new(),
+            active_idx: 0,
+            next_active: Vec::new(),
+        }
     }
-    cart
+}
+
+impl Iterator for BlueNoiseIterator {
+    type Item = Vec<f64>;
+
+    fn next(&mut self) -> Option<Vec<f64>> {
+        let dimension = self.dimensions.len();
+        // we don't need to store the RNG because it is one per thread and lazyli initialized
+        let mut rng = rand::thread_rng();
+        // first sample
+        if self.samples.is_empty() {
+            let initial_sample: Vec<f64> = self.dimensions
+                                               .iter()
+                                               .map(|x| rng.gen_range::<f64>(0_f64, *x))
+                                               .collect();
+            let initial_sample_id = self.bggrid
+                                        .insert(initial_sample.clone(), &mut self.samples)
+                                        .unwrap();
+            debug_assert_eq!(initial_sample_id, 1);
+            self.active.push(initial_sample_id);
+            return Some(initial_sample);
+        }
+        // if active_idx has iterated completely, use the next_active list and start over
+        if self.active_idx >= self.active.len() {
+            self.active_idx = 0;
+            self.active = self.next_active.clone();
+            self.next_active = Vec::new();
+        }
+        if self.active.is_empty() {
+            return None;
+        }
+        let current_id = self.active[self.active_idx];
+        let current_samp = self.samples[current_id - 1].clone();
+        for _ in 0..self.k_abort {
+            let radius = rng.gen_range::<f64>(self.min_distance, 2_f64 * self.min_distance);
+            let angles = (0..dimension - 1)
+                             .map(|_| rng.gen_range::<f64>(0_f64, 2_f64 * std::f64::consts::PI))
+                             .collect();
+            let samp_offs = polar_to_cartesian(radius, angles);
+            debug_assert_eq!(samp_offs.len(), dimension);
+            // if polar_to_cartesian would return an iterator, this might be more efficient
+            let samp = samp_offs.into_iter()
+                                .zip(current_samp.iter())
+                                .map(|(offs, x)| x + offs)
+                                .collect();
+            match self.bggrid.insert(samp, &mut self.samples) {
+                Ok(new_samp_id) => {
+                    self.next_active.push(current_id);
+                    self.next_active.push(new_samp_id);
+                    self.active_idx += 1;
+                    return Some(self.samples[new_samp_id - 1].clone());
+                }
+                Err(_) => {
+                    // wait for the next iteration
+                }
+            }
+        }
+        self.active_idx += 1;
+        self.next()
+    }
 }
 
 /// Generates blue noise samples
@@ -160,50 +244,17 @@ fn polar_to_cartesian(radius: f64, angles: Vec<f64>) -> Vec<f64> {
 /// The samples returned are in order of generation.
 /// Each sample is at most `2 * min_distance` away from a previous sample (except the first sample, of course).
 pub fn blue_noise(dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> Vec<Vec<f64>> {
-    let dimension = dimensions.len();
-    let mut rng = rand::thread_rng();
-    let initial_sample = dimensions.iter().map(|x| rng.gen_range::<f64>(0_f64, *x)).collect();
-    let mut samples: Vec<Vec<f64>> = Vec::new();
-    let mut bggrid = BackgroundGrid::new(dimensions, min_distance);
-    let initial_sample_id = bggrid.insert(initial_sample, &mut samples).unwrap();
-    debug_assert_eq!(initial_sample_id, 1);
-    let mut active: Vec<usize> = vec![initial_sample_id];
-    while !active.is_empty() {
-        let mut next_active: Vec<usize> = Vec::new();
-        for current_id in active.iter() {
-            let current_samp = samples[current_id - 1].clone();
-            let mut found_something = false;
-            for _ in 0..k_abort {
-                let radius = rng.gen_range::<f64>(min_distance, 2_f64 * min_distance);
-                let angles = (0..dimension - 1)
-                                 .map(|_| {
-                                     rng.gen_range::<f64>(0_f64, 2_f64 * std::f64::consts::PI)
-                                 })
-                                 .collect();
-                let samp_offs = polar_to_cartesian(radius, angles);
-                debug_assert_eq!(samp_offs.len(), dimension);
-                // if polar_to_cartesian would return an iterator, this might be more efficient
-                let samp = samp_offs.into_iter()
-                                    .zip(current_samp.iter())
-                                    .map(|(offs, x)| x + offs)
-                                    .collect();
-                match bggrid.insert(samp, &mut samples) {
-                    Ok(new_samp_id) => {
-                        next_active.push(new_samp_id);
-                        found_something = true;
-                    }
-                    Err(_) => {
-                        // wait for the next iteration
-                    }
-                }
-            }
-            if found_something {
-                next_active.push(*current_id)
-            }
-        }
-        active = next_active;
-    }
-    samples
+    BlueNoiseIterator::new(dimensions, min_distance, k_abort).collect()
+}
+
+/// Creates an iterator over the blue noise samples, generating them on demand.
+/// This is useful for pipelined processing or when you only need to `take` some amount of samples
+/// Otherwise this is the same as `blue_noise`
+pub fn blue_noise_iter(dimensions: Vec<f64>,
+                       min_distance: f64,
+                       k_abort: usize)
+                       -> BlueNoiseIterator {
+    BlueNoiseIterator::new(dimensions, min_distance, k_abort)
 }
 
 #[test]
