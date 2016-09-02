@@ -244,7 +244,11 @@ impl Iterator for BlueNoiseIterator {
 /// The samples returned are in order of generation.
 /// Each sample is at most `2 * min_distance` away from a previous sample (except the first sample, of course).
 pub fn blue_noise(dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> Vec<Vec<f64>> {
-    BlueNoiseIterator::new(dimensions, min_distance, k_abort).collect()
+    // this method avoids copying the samples once more vs a simple it.collect()
+    let mut it = BlueNoiseIterator::new(dimensions, min_distance, k_abort);
+    // force generation of all the samples
+    while let Some(_) = it.next() {}
+    it.samples
 }
 
 /// Creates an iterator over the blue noise samples, generating them on demand.
