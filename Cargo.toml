@@ -1,6 +1,6 @@
 [package]
 name = "bluenoisers"
-version = "1.1.0"
+version = "1.1.1"
 authors = ["Constantin Berhard <git.mail.enormator@xoxy.net>"]
 description = "Implementation of blue noise in Rust using Fast Poisson Disk Sampling."
 documentation = "https://connyonny.github.io/bluenoisers/bluenoisers"

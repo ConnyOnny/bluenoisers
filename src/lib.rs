@@ -159,7 +159,7 @@ pub struct BlueNoiseIterator {
 }
 
 impl BlueNoiseIterator {
-    pub fn new(dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> BlueNoiseIterator {
+    fn new(dimensions: Vec<f64>, min_distance: f64, k_abort: usize) -> BlueNoiseIterator {
         BlueNoiseIterator {
             dimensions: dimensions.clone(),
             min_distance: min_distance,
