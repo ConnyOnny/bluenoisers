@@ -7,6 +7,8 @@
 //!
 //! Documentation is here: https://connyonny.github.io/bluenoisers/bluenoisers
 
+#![deny(missing_docs)]
+
 extern crate rand;
 use rand::Rng;
 
@@ -147,6 +149,7 @@ fn polar_to_cartesian(radius: f64, angles: Vec<f64>) -> Vec<f64> {
         .collect()
 }
 
+/// The iterator struct returned by `blue_noise_iter`
 pub struct BlueNoiseIterator {
     dimensions: Vec<f64>,
     min_distance: f64,
